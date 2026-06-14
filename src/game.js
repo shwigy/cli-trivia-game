@@ -1,10 +1,13 @@
+// importing internal utility components and question datasets using ES Modules
+// destructuring pulls specific helper methods out of 'utils.js' to keep syntax short
 import c from './colors.js';
 import questions from './questions.js';
 import { clearScreen, divider, prompt } from './utils.js';
 
-const QUESTION_TIME = 15;
-const OPTION_LABELS = ['A', 'B', 'C', 'D'];
+const QUESTION_TIME = 15;// set global countdown clock allocation per question
+const OPTION_LABELS = ['A', 'B', 'C', 'D'];// layout template mapping array indices to characters
 
+// this centralized state object tracks running session variables dynamically
 const gameState = {
   score: 0,
   results: [],
@@ -12,6 +15,7 @@ const gameState = {
   timeLeft: QUESTION_TIME,
 };
 
+// cleanly cancels active clock triggers and clears references to prevent background interval memory leaks
 function stopTimer() {
   if (gameState.timerInterval) {
     clearInterval(gameState.timerInterval);
@@ -19,6 +23,7 @@ function stopTimer() {
   }
 }
 
+// clears screen and outputs stylized onboarding greeting using ANSI strings
 function displayWelcome() {
   clearScreen();
   console.log(`\n${c.bold}${c.cyan}`);
@@ -38,6 +43,8 @@ function displayWelcome() {
 
 function displayQuestion(q, index) {
   clearScreen();
+
+  // create a cleanly spaced array header template then join using string dividers
   const header = [
     `${c.bold}${c.cyan}TRIVIA${c.reset}`,
     `${c.dim}Question ${index + 1} of ${questions.length}${c.reset}`,
@@ -49,6 +56,7 @@ function displayQuestion(q, index) {
   console.log(`\n  ${c.bold}${c.magenta}[ ${q.category} ]${c.reset}`);
   console.log(`\n  ${c.bold}${c.yellow}${q.question}${c.reset}\n`);
 
+  // loop array bounds to display question choice strings cleanly
   for (let i = 0; i < q.options.length; i++) {
     console.log(`  ${c.cyan}${c.bold} ${OPTION_LABELS[i]}.${c.reset}  ${q.options[i]}`);
   }
@@ -60,11 +68,13 @@ function displayQuestion(q, index) {
   process.stdout.write('  > ');
 }
 
+// asynchronous orchestrator that listens to clock ticks and terminal line reads
 function getAnswerWithTimer(rl) {
   return new Promise((resolve) => {
     let resolved = false;
     gameState.timeLeft = QUESTION_TIME;
 
+    // asynchronous timer, fires repetitively every 1 second
     gameState.timerInterval = setInterval(() => {
       gameState.timeLeft--;
 
@@ -82,6 +92,7 @@ function getAnswerWithTimer(rl) {
       }
     }, 1000);
 
+    // event Listener, captures terminal user response line submissions
     rl.once('line', (input) => {
       if (!resolved) {
         stopTimer();
@@ -92,6 +103,7 @@ function getAnswerWithTimer(rl) {
   });
 }
 
+// validation engine mapping characters back into array indexes to check correctness
 function processAnswer(input, q) {
   const validInputs = ['A', 'B', 'C', 'D'];
   if (!validInputs.includes(input)) {
@@ -102,6 +114,7 @@ function processAnswer(input, q) {
   return { isCorrect, invalidInput: false, chosenIndex };
 }
 
+// standard processing block updating terminal feed with responsive status states
 function displayFeedback(result, q, timedOut) {
   const correctAnswer = `${OPTION_LABELS[q.correctIndex]}. ${q.options[q.correctIndex]}`;
   console.log();
@@ -120,11 +133,13 @@ function displayFeedback(result, q, timedOut) {
   console.log();
 }
 
+// calculates end ratios and uses array aggregation methods to parse report fields
 function displayResults() {
   clearScreen();
   const total = questions.length;
   const pct = Math.round((gameState.score / total) * 100);
 
+  // conditional tree grading user performance metrics
   let grade;
   if (pct >= 90) grade = `${c.cyan}Outstanding!!!${c.reset}`;
   else if (pct >= 75) grade = `${c.green}Great job!${c.reset}`;
@@ -173,20 +188,24 @@ function resetGameState() {
   gameState.results = [];
 }
 
+// main application loop handling sequential state steps and evaluation branches
 export async function runGame(rl) {
   displayWelcome();
   await prompt(rl, `\n  Press ${c.cyan}ENTER${c.reset} to begin...\n  > `);
 
+  // main definite array iteration sequence stepping through questions one-by-one
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     displayQuestion(q, i);
 
+    // wait on runtime promise resolves tracking keystroke inputs vs racing timeouts
     const input = await getAnswerWithTimer(rl);
     const timedOut = input === null;
 
     let result = { isCorrect: false, invalidInput: false, chosenIndex: -1 };
     let yourAnswer = 'No answer (time expired)';
 
+    // step verification validation loops only if time did not expire
     if (!timedOut) {
       result = processAnswer(input, q);
       if (result.invalidInput) {
@@ -209,6 +228,7 @@ export async function runGame(rl) {
 
     displayFeedback(result, q, timedOut);
 
+    // halt sequential stepping between loop steps to prompt users for confirmation
     if (i < questions.length - 1) {
       await prompt(rl, `  Press ${c.cyan}ENTER${c.reset} for the next question...\n  > `);
     }
@@ -218,6 +238,7 @@ export async function runGame(rl) {
 
   const again = await prompt(rl, `  Play again? (${c.cyan}y${c.reset}/${c.dim}n${c.reset}): `);
 
+  // evaluation pathway branching on game restarts
   if (again.trim().toLowerCase() === 'y') {
     resetGameState();
     rl.removeAllListeners('line');
